@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-and-test:
+    name: Build and test on Linux amd64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Linux amd64 runtime
+        run: |
+          echo "Kernel: $(uname -s)"
+          echo "Arch:   $(uname -m)"
+          if [ "$(uname -s)" != "Linux" ]; then
+            echo "Expected Linux runtime" && exit 1
+          fi
+          if [ "$(uname -m)" != "x86_64" ]; then
+            echo "Expected amd64 (x86_64) architecture" && exit 1
+          fi
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: minimal
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked --verbose
+
+      - name: Test
+        run: cargo test --locked --verbose
+

@@ -9,6 +9,11 @@ This is a Rust implementation of the Electric Era charger uptime challenge. It r
 ### Requirements
 - Rust (stable). This repo was built and tested with stable toolchain on Linux/macOS.
 
+
+### On Tests in Rust
+- It is idiomatic in Rust to colocate unit tests inside the source files (within `#[cfg(test)]` modules). These tests are compiled and run only in test builds; they are not included in the final release executable and have no runtime/performance impact in production.
+- There is also an additional integration test under the `/tests` directory which exercises the compiled binary against the provided fixtures.
+
 ### Build
 ```bash
 cargo build
@@ -39,9 +44,3 @@ This runs unit tests (parser, interval merging, uptime math) and an integration 
 - Denominator is the union of each charger's overall reporting span at a station; gaps inside a span count as downtime.
 - Numerator is the union of all intervals marked `up == true` across chargers at a station.
 - Uptime is floored to an integer percent in `[0,100]`.
-
-### On Tests in Rust
-- It is idiomatic in Rust to colocate unit tests inside the source files (within `#[cfg(test)]` modules). These tests are compiled and run only in test builds; they are not included in the final release executable and have no runtime/performance impact in production.
-- There is also an additional integration test under the `/tests` directory which exercises the compiled binary against the provided fixtures.
-
-
