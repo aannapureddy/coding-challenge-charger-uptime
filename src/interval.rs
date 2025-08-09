@@ -5,7 +5,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn merge_overlapping_and_adjacent_intervals() {
         let mut v = vec![
             Interval { start: 0, end: 10 },
@@ -19,7 +18,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn merge_keeps_disjoint_intervals() {
         let mut v = vec![
             Interval { start: 0, end: 10 },
@@ -30,7 +28,32 @@ mod tests {
     }
 }
 
-pub fn merge_intervals(_intervals: &mut Vec<Interval>) -> Vec<Interval> {
-    // Placeholder; to be implemented in Commit 3
-    _intervals.clone()
+/// Merge a list of half-open time intervals [start, end) into a set of
+/// disjoint, sorted intervals. Overlapping or adjacent intervals are merged.
+/// Invalid or zero-length intervals (end <= start) are ignored.
+pub fn merge_intervals(intervals: &mut Vec<Interval>) -> Vec<Interval> {
+    // Filter out invalid/zero-length intervals early
+    intervals.retain(|iv| iv.end > iv.start);
+
+    // Sort by start time; deterministic order helps testing
+    intervals.sort_by_key(|iv| iv.start);
+
+    let mut merged: Vec<Interval> = Vec::with_capacity(intervals.len());
+    for current in intervals.iter().copied() {
+        match merged.last_mut() {
+            None => merged.push(current),
+            Some(last) => {
+                // Half-open intervals: [a,b) and [b,c) are adjacent and mergeable
+                if current.start <= last.end {
+                    if current.end > last.end {
+                        last.end = current.end;
+                    }
+                } else {
+                    merged.push(current);
+                }
+            }
+        }
+    }
+
+    merged
 }
