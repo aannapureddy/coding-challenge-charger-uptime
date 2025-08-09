@@ -26,6 +26,17 @@ mod tests {
         let merged = merge_intervals(&mut v);
         assert_eq!(merged.len(), 2);
     }
+
+    #[test]
+    fn zero_length_and_invalid_ignored() {
+        let mut v = vec![
+            Interval { start: 10, end: 10 }, // zero-length
+            Interval { start: 20, end: 15 }, // invalid
+            Interval { start: 0, end: 1 },
+        ];
+        let merged = merge_intervals(&mut v);
+        assert_eq!(merged, vec![Interval { start: 0, end: 1 }]);
+    }
 }
 
 /// Merge a list of half-open time intervals [start, end) into a set of

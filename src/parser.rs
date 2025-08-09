@@ -21,6 +21,8 @@ pub fn parse_input(input: &str) -> Result<(Vec<Station>, Vec<ChargerReport>), Pa
     }
 
     let mut section = Section::None;
+    let mut saw_stations = false;
+    let mut saw_reports = false;
     let mut stations: Vec<Station> = Vec::new();
     let mut reports: Vec<ChargerReport> = Vec::new();
 
@@ -32,10 +34,12 @@ pub fn parse_input(input: &str) -> Result<(Vec<Station>, Vec<ChargerReport>), Pa
 
         if line == "[Stations]" {
             section = Section::Stations;
+            saw_stations = true;
             continue;
         }
         if line == "[Charger Availability Reports]" {
             section = Section::Reports;
+            saw_reports = true;
             continue;
         }
 
@@ -134,9 +138,14 @@ pub fn parse_input(input: &str) -> Result<(Vec<Station>, Vec<ChargerReport>), Pa
         }
     }
 
-    if matches!(section, Section::None) {
+    if !saw_stations || !saw_reports {
         return Err(ParseError::InvalidFormat(
             "missing required sections".into(),
+        ));
+    }
+    if reports.is_empty() {
+        return Err(ParseError::InvalidFormat(
+            "no charger availability reports found".into(),
         ));
     }
 
@@ -164,6 +173,18 @@ mod tests {
     #[test]
     fn parse_invalid_header() {
         let input = "[Bad]\n1 100\n\n[Charger Availability Reports]\n100 0 100 true\n";
+        assert!(parse_input(input).is_err());
+    }
+
+    #[test]
+    fn parse_missing_sections() {
+        let input = "1 100\n100 0 100 true\n";
+        assert!(parse_input(input).is_err());
+    }
+
+    #[test]
+    fn parse_requires_at_least_one_report() {
+        let input = "[Stations]\n1 100\n\n[Charger Availability Reports]\n";
         assert!(parse_input(input).is_err());
     }
 }
