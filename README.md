@@ -1,84 +1,57 @@
-# Overview
+## Charger Uptime Solution
 
-This is a simple coding challenge to test your abilities. To join the software program at Electric Era, you must complete this challenge. 
+Find the full code at [https://github.com/aannapureddy/coding-challenge-charger-uptime](https://github.com/aannapureddy/coding-challenge-charger-uptime)
 
-# Challenge
+This is a Rust implementation of the Electric Era charger uptime challenge. It reads an input file describing stations, chargers, and charger availability reports, and prints each station's uptime percentage to stdout.
 
-You must write a program that calculates uptime for stations in a charging network. It will take in a formatted input file that indicates individual charger uptime status for a given time period and write output to standard-output (`stdout`). 
+Disclaimer: It goes without saying that AI was used during the process of creating this solution. Steps included: finding the job posting, researching the company and specific role, reviewing the executive team's history, breaking down the challenge requirements, enumerating edge cases, selecting a reasonable algorithm, creating boilerplate code, testing, setting up a GitHub pipeline, and sending the email. This is a good, evolutionary thing.
 
-**Station Uptime** is defined as the percentage of time that any charger at a station was available, out of the entire time period that any charger *at that station* was reporting in.
+### Requirements
+- Rust (stable). This repo was built and tested with the stable toolchain on Linux/macOS.
 
-## Input File Format
 
-The input file will be a simple ASCII text file. The first section will be a list of station IDs that indicate the Charger IDs present at each station. The second section will be a report of each Charger ID's availability reports. An availability report will contain the Charger ID, the start time, the end time, and if the charger was "up" (i.e. available) or not.
+### On Tests in Rust
+- It is idiomatic in Rust to colocate unit tests inside the source files (within `#[cfg(test)]` modules). These tests are compiled and run only in test builds; they are not included in the final release executable and have no runtime/performance impact in production.
+- There is also an additional integration test under the `/tests` directory which exercises the compiled binary against the provided fixtures.
 
-The following preconditons will apply:
-
-* Station ID will be guaranteed to be a **unsigned 32-bit integer** and guaranteed to be unique to any other Station ID.
-* Charger ID will be guaranteed to be a **unsigned 32-bit integer** and guaranteed to be unique across all Station IDs.
-* `start time nanos` and `end time nanos` are guaranteed to fit within a **unsigned 64-bit integer**.
-* `up` will always be `true` or `false`
-* Each Charger ID may have multiple availability report entries.
-* Report entries need not be contiguous in time for a given Charger ID. A gap in time in a given Charger ID's availability report should count as downtime.
-
-```
-[Stations]
-<Station ID 1> <Charger ID 1> <Charger ID 2> ... <Charger ID n>
-...
-<Station ID n> ...
-
-[Charger Availability Reports]
-<Charger ID 1> <start time nanos> <end time nanos> <up (true/false)>
-<Charger ID 1> <start time nanos> <end time nanos> <up (true/false)>
-...
-<Charger ID 2> <start time nanos> <end time nanos> <up (true/false)>
-<Charger ID 2> <start time nanos> <end time nanos> <up (true/false)>
-...
-<Charger ID n> <start time nanos> <end time nanos> <up (true/false)>
+### Build
+```bash
+cargo build
 ```
 
-## Program Parameters and Runtime Conditions
+### Run
+```bash
+cargo run -- <path/to/input_file>
 
-Your program will be executed in a Linux environment running on an `amd64` architecture. If your chosen language of submission is compiled, ensure it compiles in that environment. Please avoid use of non-standard dependencies. 
-
-The program should accept a single argument, the path to the input file. The input file may not necessarily be co-located in the same folder as the program.
-
-Example CLI execution:
-```
-./your_submission relative/path/to/input/file
+# Examples using included fixtures
+cargo run -- fixtures/input_1.txt
+cargo run -- fixtures/input_2.txt
 ```
 
-## Output Format
+Output format: one line per station, ascending `StationID`, as `<StationID> <uptime_percent>`.
 
-The output shall be written to `stdout`. If the input is invalid, please simply print `ERROR` and exit. `stderr` may contain detailed error information but is not mandatory. If there is no error, please write `stdout` as follows, and then exit gracefully.
+On invalid input, the program prints `ERROR` to stdout and logs details to stderr, then exits successfully (per prompt).
 
-```
-<Station ID 1> <Station ID 1 uptime>
-<Station ID 2> <Station ID 2 uptime>
-...
-<Station ID n> <Station ID n uptime>
+### Test
+```bash
+cargo test
 ```
 
-`Station ID n uptime` should be an integer in the range [0-100] representing the given station's uptime percentage. The value should be rounded down to the nearest percent.
+This runs unit tests (parser, interval merging, uptime math) and an integration test that executes the binary against the sample fixtures in `fixtures/`.
 
-Please output Station IDs in *ascending order*.
+### Continuous Integration
+- GitHub Actions runs on `ubuntu-latest` (Linux `x86_64`) to mirror the challenge runtime requirement (Linux `amd64`).
+- The workflow builds with `cargo build --locked` and runs `cargo test --locked`.
+- See `.github/workflows/ci.yml`.
 
-# Testing and Submission 
+### Notes
+- Interval semantics are half-open `[start, end)`. Adjacent intervals merge without double-counting.
+- Denominator is the union of each charger's overall reporting span at a station; gaps inside a span count as downtime.
+- Numerator is the union of all intervals marked `up == true` across chargers at a station.
+- Uptime is floored to an integer percent in `[0, 100]`.
 
-This repository contains a few example input files, along with the expected stdout output (this expected stdout is encoded in a separate paired file).
-
-Please submit the following in a zip file to `coding-challenge-submissions@electricera.tech` for consideration:
-* Your full source code for the solution
-* Any explanatory documents (text file, markdown, or PDF)
-* Any unit/integration tests
-* Instructions on how to compile (if compiled) and run the solution 
-
-If any component of the prompt is ambiguous or under-defined, please explain how your program resolves that ambiguity in your explanatory documents.
-
-# Considerations
-
-All aspects of your solution will be considered. Be mindful of:
-* Correctness for both normal and edge cases
-* Error-handling for improper inputs or unmet preconditions
-* Maintainability and readability of your solution
-* Scalability of the solution with increasingly large datasets
+### Robustness Tightenings (beyond baseline requirements)
+- Enforce unique `StationID`s and unique `ChargerID`s globally; duplicate IDs are rejected with a clear error.
+- Validate that every report references a known charger from `[Stations]` and that each charger belongs to exactly one station.
+- Reject duplicate section headers to avoid ambiguous parsing.
+- Require at least one availability report overall. These choices improve input hygiene and are documented in `ASSUMPTIONS.md`.
