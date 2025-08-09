@@ -8,4 +8,11 @@
 - Output is sorted by `StationID` ascending.
 - Uptime percent is floored to an integer in `[0, 100]`.
 
+### Additional Robustness (Tightenings)
+- `StationID`s must be unique across the file; duplicates are rejected.
+- `ChargerID`s must be unique globally and cannot appear under multiple stations.
+- Every availability report must reference a charger declared in `[Stations]`.
+- Duplicate section headers (e.g., multiple `[Stations]`) are rejected to avoid ambiguity.
+- At least one availability report must be present.
+
 

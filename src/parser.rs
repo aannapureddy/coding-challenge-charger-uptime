@@ -25,6 +25,10 @@ pub fn parse_input(input: &str) -> Result<(Vec<Station>, Vec<ChargerReport>), Pa
     let mut saw_reports = false;
     let mut stations: Vec<Station> = Vec::new();
     let mut reports: Vec<ChargerReport> = Vec::new();
+    // Track data hygiene constraints while parsing
+    let mut seen_station_ids: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+    let mut seen_charger_ids: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+    let mut known_chargers: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
 
     for (line_idx, raw_line) in input.lines().enumerate() {
         let line = raw_line.trim();
@@ -33,11 +37,21 @@ pub fn parse_input(input: &str) -> Result<(Vec<Station>, Vec<ChargerReport>), Pa
         }
 
         if line == "[Stations]" {
+            if saw_stations {
+                return Err(ParseError::InvalidFormat(
+                    "duplicate [Stations] header".into(),
+                ));
+            }
             section = Section::Stations;
             saw_stations = true;
             continue;
         }
         if line == "[Charger Availability Reports]" {
+            if saw_reports {
+                return Err(ParseError::InvalidFormat(
+                    "duplicate [Charger Availability Reports] header".into(),
+                ));
+            }
             section = Section::Reports;
             saw_reports = true;
             continue;
@@ -61,7 +75,16 @@ pub fn parse_input(input: &str) -> Result<(Vec<Station>, Vec<ChargerReport>), Pa
                             line_idx + 1
                         ))
                     })?;
+                if !seen_station_ids.insert(station_id) {
+                    return Err(ParseError::InvalidFormat(format!(
+                        "duplicate station id {} detected (line {})",
+                        station_id,
+                        line_idx + 1
+                    )));
+                }
                 let mut chargers: Vec<ChargerId> = Vec::new();
+                let mut chargers_in_line: std::collections::BTreeSet<u32> =
+                    std::collections::BTreeSet::new();
                 for token in parts {
                     let cid: u32 = token.parse().map_err(|_| {
                         ParseError::InvalidFormat(format!(
@@ -69,6 +92,21 @@ pub fn parse_input(input: &str) -> Result<(Vec<Station>, Vec<ChargerReport>), Pa
                             line_idx + 1
                         ))
                     })?;
+                    if !chargers_in_line.insert(cid) {
+                        return Err(ParseError::InvalidFormat(format!(
+                            "duplicate charger id {} on the same station line (line {})",
+                            cid,
+                            line_idx + 1
+                        )));
+                    }
+                    if !seen_charger_ids.insert(cid) {
+                        return Err(ParseError::InvalidFormat(format!(
+                            "charger id {} appears under multiple stations (line {})",
+                            cid,
+                            line_idx + 1
+                        )));
+                    }
+                    known_chargers.insert(cid);
                     chargers.push(ChargerId(cid));
                 }
                 if chargers.is_empty() {
@@ -97,6 +135,13 @@ pub fn parse_input(input: &str) -> Result<(Vec<Station>, Vec<ChargerReport>), Pa
                         line_idx + 1
                     ))
                 })?;
+                if !known_chargers.contains(&charger) {
+                    return Err(ParseError::InvalidFormat(format!(
+                        "report references unknown charger id {} (line {})",
+                        charger,
+                        line_idx + 1
+                    )));
+                }
                 let start: u64 = tokens[1].parse().map_err(|_| {
                     ParseError::InvalidFormat(format!(
                         "invalid start time at line {}",
@@ -185,6 +230,30 @@ mod tests {
     #[test]
     fn parse_requires_at_least_one_report() {
         let input = "[Stations]\n1 100\n\n[Charger Availability Reports]\n";
+        assert!(parse_input(input).is_err());
+    }
+
+    #[test]
+    fn duplicate_station_id_rejected() {
+        let input = "[Stations]\n1 100\n1 101\n\n[Charger Availability Reports]\n100 0 10 true\n101 0 10 false\n";
+        assert!(parse_input(input).is_err());
+    }
+
+    #[test]
+    fn charger_in_multiple_stations_rejected() {
+        let input = "[Stations]\n1 100\n2 100\n\n[Charger Availability Reports]\n100 0 10 true\n";
+        assert!(parse_input(input).is_err());
+    }
+
+    #[test]
+    fn report_for_unknown_charger_rejected() {
+        let input = "[Stations]\n1 100\n\n[Charger Availability Reports]\n999 0 10 true\n";
+        assert!(parse_input(input).is_err());
+    }
+
+    #[test]
+    fn duplicate_header_rejected() {
+        let input = "[Stations]\n1 100\n[Stations]\n2 200\n\n[Charger Availability Reports]\n100 0 10 true\n";
         assert!(parse_input(input).is_err());
     }
 }

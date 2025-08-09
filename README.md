@@ -49,3 +49,9 @@ This runs unit tests (parser, interval merging, uptime math) and an integration 
 - Denominator is the union of each charger's overall reporting span at a station; gaps inside a span count as downtime.
 - Numerator is the union of all intervals marked `up == true` across chargers at a station.
 - Uptime is floored to an integer percent in `[0, 100]`.
+
+### Robustness Tightenings (beyond baseline requirements)
+- Enforce unique `StationID`s and unique `ChargerID`s globally; duplicate IDs are rejected with a clear error.
+- Validate that every report references a known charger from `[Stations]` and that each charger belongs to exactly one station.
+- Reject duplicate section headers to avoid ambiguous parsing.
+- Require at least one availability report overall. These choices improve input hygiene and are documented in `ASSUMPTIONS.md`.
